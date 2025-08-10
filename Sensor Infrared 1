@@ -1,0 +1,19 @@
+int pinSensor = 7;
+int sensorState;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(pinSensor, INPUT);
+}
+
+void loop() {
+  sensorState = digitalRead(pinSensor);
+  
+  if (sensorState == HIGH) {
+    Serial.println("Tidak ada objek");
+  } else {
+    Serial.println("Ada objek");
+  }
+  
+  delay(500);
+}
