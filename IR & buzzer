@@ -1,0 +1,19 @@
+int pinSensor = 7;
+int pinBuzzer = 8;
+int sensorState;
+
+void setup() {
+  pinMode(pinSensor, INPUT);
+  pinMode(pinBuzzer, OUTPUT);
+}
+
+void loop() {
+  sensorState = digitalRead(pinSensor);
+  
+  if (sensorState == HIGH) {
+    noTone(pinBuzzer);
+  } else {
+    tone(pinBuzzer, 1000);
+  }
+  delay(100);
+}
