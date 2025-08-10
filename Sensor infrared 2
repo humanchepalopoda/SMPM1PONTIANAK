@@ -1,0 +1,17 @@
+int pinSensor = 7;
+int sensorState;
+
+void setup() {
+  pinMode(pinSensor, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop() {
+  sensorState = digitalRead(pinSensor);
+  
+  if (sensorState == HIGH) {
+    digitalWrite(LED_BUILTIN, LOW);
+  } else {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
+}
