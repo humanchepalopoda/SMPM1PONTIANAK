@@ -1,0 +1,55 @@
+#define tPin 3
+#define ePin 4
+#define buzzerPin 8
+
+void setup() {
+  pinMode(tPin, OUTPUT);
+  pinMode(ePin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  Serial.begin(9600);
+}
+
+
+void loop() {
+
+  digitalWrite(tPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(tPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(tPin, LOW);
+
+  long durasi, jarak;
+  durasi = pulseIn(ePin, HIGH);
+  jarak = (durasi * 0.0343) / 2;
+  delay(10);
+
+  Serial.print(jarak);
+  Serial.println(" cm");
+
+  if (jarak < 30 && jarak > 20) {
+    tone(buzzerPin, 800);
+    delay(400);
+    noTone(buzzerPin);
+    delay(400);
+  }
+  if (jarak < 20 && jarak > 10) {
+    tone(buzzerPin, 1200);
+    delay(200);
+    noTone(buzzerPin);
+    delay(200);
+  }
+  if (jarak < 10 && jarak > 5) {
+    tone(buzzerPin, 1600);
+    delay(100);
+    noTone(buzzerPin);
+    delay(100);
+  }
+  if (jarak < 5) {
+    tone(buzzerPin, 2000);
+    delay(50);
+    noTone(buzzerPin);
+    delay(50);
+  } else {
+    noTone(buzzerPin);
+  }
+}
