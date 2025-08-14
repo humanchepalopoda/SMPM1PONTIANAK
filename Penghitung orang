@@ -1,0 +1,84 @@
+#define tPin 3
+#define ePin 4
+#define IR 7
+#define buzzerPin 8
+
+int irState;
+int lastIrState = HIGH; // kondisi awal
+int counter = 0;
+int F = 0;
+int speed = 0;
+
+bool buzzerActive = false; // penanda buzzer aktif
+
+unsigned long prevUltrasonic = 0;
+
+void setup() {
+  pinMode(tPin, OUTPUT);
+  pinMode(ePin, INPUT);
+  pinMode(IR, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  // ===== Pembacaan IR tanpa delay =====
+  irState = digitalRead(IR);
+  if (irState == LOW && lastIrState == HIGH) {
+    counter++;
+  }
+  lastIrState = irState;
+
+  // ===== Ultrasonik dibaca tiap 50ms =====
+  if (millis() - prevUltrasonic >= 50) {
+    prevUltrasonic = millis();
+
+    // Baca jarak
+    digitalWrite(tPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(tPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(tPin, LOW);
+
+    long durasi = pulseIn(ePin, HIGH);
+    long jarak = (durasi * 0.0343) / 2;
+
+    // Kondisi jarak
+    if (jarak <= 15 && jarak > 0) {
+      F = 100;
+      speed = 500;
+      buzzerActive = true;
+    } else {
+      buzzerActive = false;
+    }
+
+    Serial.print("Jarak: ");
+    Serial.print(jarak);
+    Serial.print(" cm  Jumlah orang: ");
+    Serial.println(counter);
+  }
+
+  // ===== Panggil buzzer =====
+  buzzer();
+}
+
+void buzzer() {
+  static bool buzzerOn = false;
+  static unsigned long lastToggle = 0;
+
+  if (!buzzerActive) {
+    noTone(buzzerPin);
+    buzzerOn = false;
+    return;
+  }
+
+  if (millis() - lastToggle >= speed) {
+    lastToggle = millis();
+    buzzerOn = !buzzerOn;
+    if (buzzerOn) {
+      tone(buzzerPin, F);
+    } else {
+      noTone(buzzerPin);
+    }
+  }
+}
