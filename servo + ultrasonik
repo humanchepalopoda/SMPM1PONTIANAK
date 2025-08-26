@@ -1,0 +1,48 @@
+#include <Servo.h>
+
+Servo myservo;  
+
+#define tPin 3
+#define ePin 4
+
+void setup() {
+  pinMode(tPin, OUTPUT);
+  pinMode(ePin, INPUT);
+  myservo.attach(9); 
+  Serial.begin(9600);
+}
+
+
+void loop() {
+
+  digitalWrite(tPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(tPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(tPin, LOW);
+
+  long durasi,jarak;
+  durasi = pulseIn(ePin, HIGH);
+  jarak = (durasi * 0.0343) / 2;
+  delay(100);
+
+  Serial.print(jarak);
+  Serial.println(" cm");
+  
+  if (jarak > 20) {
+    myservo.write(0);
+  delay(1000);
+  } else {
+     myservo.write(180);
+  delay(1000);
+  }
+}
+
+
+
+
+
+
+
+
+
