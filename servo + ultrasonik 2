@@ -1,0 +1,46 @@
+#include <Servo.h>
+
+Servo myservo;  
+
+#define tPin 3
+#define ePin 4
+
+int sudut = 0;
+
+void setup() {
+  pinMode(tPin, OUTPUT);
+  pinMode(ePin, INPUT);
+  myservo.attach(12); 
+  Serial.begin(9600);
+}
+
+
+void loop() {
+
+  digitalWrite(tPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(tPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(tPin, LOW);
+
+  long durasi,jarak;
+  durasi = pulseIn(ePin, HIGH);
+  jarak = (durasi * 0.0343) / 2;
+  delay(100);
+
+  Serial.print(jarak);
+  Serial.println(" cm");
+  
+  sudut = map(jarak, 0, 50, 0, 180);
+  myservo.write(sudut);
+  
+}
+
+
+
+
+
+
+
+
+
