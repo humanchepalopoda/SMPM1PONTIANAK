@@ -22,8 +22,8 @@ void setup() {
 
 void loop() {
   // Set motors to maximum speed
-  analogWrite(enA, 255);
-  analogWrite(enB, 255);
+  analogWrite(enA, 80);
+  analogWrite(enB, 80);
 
   // Turn on motor A & B
   digitalWrite(in1, HIGH);
@@ -31,4 +31,10 @@ void loop() {
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
   delay(2000);
+
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, HIGH);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, HIGH);
+  delay(3000)
 }
