@@ -1,0 +1,150 @@
+#include <Servo.h>
+
+#define trigPin 6
+#define echoPin 7
+
+#define IN1 8
+#define IN2 9
+#define IN3 10
+#define IN4 11
+
+Servo myServo;
+
+long durasi;
+int jarak;
+int jarakKanan;
+int jarakKiri;
+
+int ukurJarak() {
+  // Pastikan trig benar-benar LOW dulu
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(5);
+
+  // Trigger 10 microseconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Tunggu pulsa echo, timeout 30000 µs (30 ms) ~ maksimal jarak ~5 m
+  durasi = pulseIn(echoPin, HIGH, 30000UL);
+
+  if (durasi == 0) {
+    // Tidak ada echo: anggap out-of-range
+    return -1; // atau nilai besar seperti 999
+  }
+
+  // Hitung jarak (cm) -- gunakan float untuk akurasi
+  float distance = (durasi * 0.0343) / 2.0;
+  return (int) distance;
+}
+
+void maju() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void mundur() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void kiri() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void kanan() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void berhenti() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+void setup() {
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  myServo.attach(5);
+  myServo.write(90);
+  delay(1000);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+  jarak = ukurJarak();
+  if (jarak == -1) {
+    Serial.println("Jarak Depan: out of range");
+  } else {
+    Serial.print("Jarak Depan: ");
+    Serial.println(jarak);
+  }
+
+  // Jika jarak valid dan >20 -> maju; kalau out-of-range dianggap jauh
+  if (jarak == -1 || jarak > 20) {
+    maju();
+  } else {
+    // kalau dekat
+    berhenti();
+    delay(500);
+
+    // Pastikan servo berhenti dan beri sedikit waktu sebelum membaca
+    myServo.write(0);
+    delay(400); // waktu cukup agar servo selesai bergerak dan sensor stabil
+    jarakKanan = ukurJarak();
+    if (jarakKanan == -1) Serial.println("Kanan: out of range");
+    else {
+      Serial.print("Kanan: ");
+      Serial.println(jarakKanan);
+    }
+
+    myServo.write(180);
+    delay(400);
+    jarakKiri = ukurJarak();
+    if (jarakKiri == -1) Serial.println("Kiri: out of range");
+    else {
+      Serial.print("Kiri: ");
+      Serial.println(jarakKiri);
+    }
+
+    myServo.write(90);
+    delay(300);
+
+    // Tentukan arah (tangani nilai -1)
+    int leftVal = (jarakKiri == -1) ? 999 : jarakKiri;
+    int rightVal = (jarakKanan == -1) ? 999 : jarakKanan;
+
+    if (leftVal > rightVal) {
+      Serial.println("belok kiri");
+      kiri();
+      delay(600);
+    } else {
+      Serial.println("belok kanan");
+      kanan();
+      delay(600);
+    }
+    berhenti();
+    delay(300);
+  }
+
+  // Tambah jeda kecil sebelum pengukuran depan berikutnya supaya sensor siap
+  delay(60); // 60 ms
+}
