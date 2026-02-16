@@ -1,0 +1,166 @@
+#include <DIYables_Keypad.h>  // DIYables_Keypad library
+#include <LiquidCrystal_I2C.h>
+#include  <Wire.h>
+
+// Pin
+const int trig = 11;
+const int echo = 12;
+const int pompa = 9;
+const int infrared = 10;
+
+LiquidCrystal_I2C lcd(0x27,  16, 2);
+
+const int ROW_NUM = 4; // four rows
+const int COLUMN_NUM = 3; // four columns
+
+const float luasTabung = 50;
+
+// Variabel global
+volatile float volumeInput = 0;  // Volume yang dimasukkan lewat Blynk (dalam ml)
+volatile float volumeTampil = 0;      // Volume yang ditampilkan di Blynk
+bool kondisiMengisi = false;          // Flag proses pengisian berjalan atau tidak
+float levelAwal = 0;                  // Level awal air (jarak sensor ke permukaan air, dalam cm)
+float levelTarget = 0;                // Target level air setelah pengisian (dalam cm)
+float levelTampil = 0;                // Ketinggian air yang ditampilkan
+
+char keys[ROW_NUM][COLUMN_NUM] = {
+  {'1','2','3'},
+  {'4','5','6'},
+  {'7','8','9'},
+  {'*','0','#'}
+};
+
+byte pin_rows[ROW_NUM] = {8, 7, 6, 5}; //connect to the row pinouts of the keypad
+byte pin_column[COLUMN_NUM] = {4, 3, 2}; //connect to the column pinouts of the keypad
+
+DIYables_Keypad keypad = DIYables_Keypad( makeKeymap(keys), pin_rows, pin_column, ROW_NUM, COLUMN_NUM );
+
+float ukurLevelAir() {
+  long durasi;
+  float jarak;
+  // Pastikan trigger dalam keadaan LOW
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  // Berikan pulsa 10 µs pada trigger
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  // Baca pulsa pada echo (timeout 30000 µs)
+  durasi = pulseIn(echo, HIGH, 30000);
+  // Hitung jarak (cm); kecepatan suara ~0.0343 cm/µs
+  jarak = (durasi * 0.0343) / 2;
+  return jarak;
+}
+
+void mengisiAir() {
+  kondisiMengisi = true;
+
+  // Ukur level awal air dalam tabung
+  levelAwal = ukurLevelAir();
+
+  // Tinggi air yang diinginkan untuk volume yang diinginkan
+  float dropTinggi = volumeInput / luasTabung;
+
+  // Target ketinggian air
+  levelTarget = levelAwal + dropTinggi;
+
+  // Nyalakan pompa
+  digitalWrite(pompa, LOW);
+  Serial.println("Pompa MENYALA.");
+
+  // Proses pengisian: teruskan sampai level terukur mencapai target
+  while (true) {
+    float levelSaatIni = ukurLevelAir();
+    float volumetarget = levelTarget * luasTabung;
+    levelTampil = levelSaatIni - levelAwal;
+
+    // Volume yang ditampilkan
+    volumeTampil = levelTampil * luasTabung;
+
+    float levelSisa = 24 - levelSaatIni;
+
+    Serial.print("Level saat ini (cm): ");
+    Serial.print(levelSaatIni);
+    Serial.print("  ");
+    Serial.print(levelTarget);
+    Serial.print("  volume tampil: ");
+    Serial.println(volumeTampil);
+
+    lcd.setCursor(0,1);
+    lcd.print("                ");
+    lcd.setCursor(0,1);
+    lcd.print(volumeTampil);
+
+    float volumesaatini = levelSaatIni * luasTabung;
+
+    // Jika level telah mencapai atau melebihi target, berhenti
+    if (volumesaatini >= volumetarget) {
+      break;
+    }
+    delay(100);
+  }
+
+  // Matikan pompa
+  digitalWrite(pompa, HIGH);
+  Serial.println("Pompa MATI.");
+
+  // Reset volume agar tidak terjadi pengisian ulang tanpa input baru
+  volumeInput = 0;
+  kondisiMengisi = false;
+}
+
+void setup(){
+  Serial.begin(9600);
+  pinMode(infrared, INPUT);
+  pinMode(pompa, OUTPUT);
+  digitalWrite(pompa, HIGH);  // Pastikan pompa mati pada awalnya
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+
+  delay(1000);
+  lcd.init();
+  lcd.backlight();
+  Serial.println("Keypad 4x4 example");
+}
+
+void loop(){
+  char key = keypad.getKey();
+
+  if (key){
+     if (key >= '0' && key <= '9') {
+      int temp = volumeInput * 10 + (key - '0');
+      if (temp <= 1000) {
+        lcd.clear();
+        volumeInput = temp;
+        lcd.setCursor(0,0);
+        lcd.print("Input: ");
+        Serial.print("Input: ");
+        lcd.setCursor(8,0);
+        lcd.println(volumeInput);
+        Serial.println(volumeInput);
+      } else {
+        Serial.print("Maksimal 1000");
+      }
+      
+    }
+
+    else if (key == '#') {
+      lcd.setCursor(0,0);
+      lcd.print("Target:");
+      Serial.print("Angka final: ");
+      Serial.println(volumeInput);
+    }
+
+    else if (key == '*') {
+      lcd.clear();
+      volumeInput = 0;
+      lcd.setCursor(0,0);
+      lcd.println("Reset");
+      Serial.println("Reset");
+    }
+  }
+  if (digitalRead(infrared) == LOW && !kondisiMengisi && volumeInput > 0) {
+    Serial.println("Gelas terdeteksi. Mulai proses pengisian.");
+    mengisiAir();
+  }
+}
