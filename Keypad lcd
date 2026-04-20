@@ -6,6 +6,10 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int ROW_NUM = 4;     // four rows
 const int COLUMN_NUM = 4;  // four columns
+//
+int trig = 12;
+int echo = 11;
+float x = 0;
 
 long volumeInput = 0;
 
@@ -23,9 +27,15 @@ DIYables_Keypad keypad = DIYables_Keypad(makeKeymap(keys), pin_rows, pin_column,
 
 void setup() {
   Serial.begin(9600);
+  pinMode(10, OUTPUT);
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
   delay(1000);
   lcd.init();
   lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("prabowo subianto");
   Serial.println("Keypad 4x4 example");
 }
 
@@ -51,6 +61,20 @@ void loop() {
       lcd.println("Reset");
       lcd.setCursor(0, 1);
       lcd.println(volumeInput);
+    }
+
+    else if (key == '#') {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("cek");
+
+      for (int i = 0; i < volumeInput; i++) {
+        
+        tone(10, i);
+        delay(100);
+      }
+      volumeInput = 0;
+      noTone(10);
     }
   }
 }
