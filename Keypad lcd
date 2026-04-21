@@ -25,6 +25,19 @@ byte pin_column[COLUMN_NUM] = { 5, 4, 3, 2 };  //connect to the column pinouts o
 
 DIYables_Keypad keypad = DIYables_Keypad(makeKeymap(keys), pin_rows, pin_column, ROW_NUM, COLUMN_NUM);
 
+float ukurAir() {
+  long durasi;
+  float jarak;
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  durasi = pulseIn(echo, HIGH, 30000);
+  jarak = (durasi * 0.0343) / 2;
+  return jarak;
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(10, OUTPUT);
@@ -34,7 +47,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("prabowo subianto");
   Serial.println("Keypad 4x4 example");
 }
@@ -68,8 +81,18 @@ void loop() {
       lcd.setCursor(0, 0);
       lcd.print("cek");
 
+      while (true) {
+        x = ukurAir();
+        lcd.setCursor(0, 1);
+        lcd.print(x);
+        if (x >= volumeInput - 20 && x <= volumeInput+20) {
+          break;
+        }
+        delay(100);
+      }
+
       for (int i = 0; i < volumeInput; i++) {
-        
+
         tone(10, i);
         delay(100);
       }
