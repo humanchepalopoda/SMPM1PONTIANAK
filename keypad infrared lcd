@@ -1,0 +1,128 @@
+#include <DIYables_Keypad.h>  // DIYables_Keypad library
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int ROW_NUM = 4;     // four rows
+const int COLUMN_NUM = 4;  // four columns
+//
+
+int trig = 12;
+int echo = 11;
+float x = 0;
+
+long volumeInput = 0;
+long volumeInput2 = 0;
+
+char keys[ROW_NUM][COLUMN_NUM] = {
+  { '1', '2', '3', 'A' },
+  { '4', '5', '6', 'B' },
+  { '7', '8', '9', 'C' },
+  { '*', '0', '#', 'D' }
+};
+
+byte pin_rows[ROW_NUM] = { 9, 8, 7, 6 };       //connect to the row pinouts of the keypad
+byte pin_column[COLUMN_NUM] = { 5, 4, 3, 2 };  //connect to the column pinouts of the keypad
+
+DIYables_Keypad keypad = DIYables_Keypad(makeKeymap(keys), pin_rows, pin_column, ROW_NUM, COLUMN_NUM);
+//
+float ukurAir() {
+  long durasi;
+  float jarak;
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  durasi = pulseIn(echo, HIGH, 30000);
+  jarak = (durasi * 0.0343) / 2 ;
+  return jarak;
+}
+
+void logic() {
+  logikaJalan = true;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("cek");
+
+  //
+  while (true) {
+    x = ukurAir();
+    lcd.setCursor(4, 0);
+    lcd.print(x);
+    if (x >= volumeInput2-2 && x <= volumeInput2+2) {
+      break;
+    }
+    delay(100);
+  }
+
+  for (int i = 0; i < volumeInput2; i++) {
+    lcd.setCursor(0, 1);
+    lcd.print(i+1);
+    tone(10, i);
+    delay(100);
+  }
+  volumeInput = 0;
+  volumeInput2 = 0;
+  logikaJalan = false;
+  noTone(10); 
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(10, OUTPUT);
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+  //
+  pinMode(infrared, INPUT);
+
+  delay(1000);
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("prabowo subianto");
+  Serial.println("Keypad 4x4 example");
+}
+
+void loop() {
+  char key = keypad.getKey();
+
+  //
+  sinyal = digitalRead(infrared);
+
+  if (key) {
+    if (key >= '0' && key <= '9') {
+      lcd.clear();
+      volumeInput = volumeInput * 10 + (key - '0');
+      lcd.setCursor(0, 0);
+      lcd.print("Input: ");
+      Serial.print("Input: ");
+      lcd.setCursor(0, 1);
+      lcd.println(volumeInput);
+      Serial.println(volumeInput);
+    }
+
+    else if (key == '*') {
+      lcd.clear();
+      volumeInput = 0;
+      lcd.setCursor(0, 0);
+      lcd.println("Reset");
+      lcd.setCursor(0, 1);
+      lcd.println(volumeInput);
+    }
+
+    else if (key == '#') {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Fiks");
+      lcd.setCursor(4,0);
+      lcd.print(volumeInput);
+      volumeInput2 = volumeInput;
+    }
+  }
+
+  //
+
+}
