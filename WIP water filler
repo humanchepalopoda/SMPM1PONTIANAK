@@ -1,0 +1,115 @@
+#include <DIYables_Keypad.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+
+const int baris = 4;
+const int kolom = 3;
+char keys[baris][kolom] = {
+  {'1', '2', '3'},
+  {'4', '5', '6'},
+  {'7', '8', '9'},
+  {'*', '0', '#'}
+};
+byte pin_baris[baris] = {9, 8, 7, 6};
+byte pin_kolom[kolom] = {5, 4, 3};
+DIYables_Keypad keypad = DIYables_Keypad( makeKeymap(keys), pin_baris, pin_kolom, baris, kolom);
+int infraRed = A0;
+int sinyal = 0;
+int pompa = 10;
+int trig = 12;
+int echo = 11;
+float levelAwal = 0;
+
+int button = 2;
+int volumeInput = 0;
+
+float volumeTampil = 0;
+bool kondisiMengisi = false;
+bool adaGelas = false;
+float levelTarget = 0;
+float levelTampil = 0;
+float luasTabung = 63.585;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+float ukurAir() {
+  long durasi;
+  float jarak;
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  durasi = pulseIn(echo, HIGH, 30000);
+  jarak = (durasi * 0.0343) / 2 ;
+  return jarak;
+}
+
+void mengisiAir() {
+  kondisiMengisi = true;
+  float levelAwal = ukurAir();
+  float dropTinggi = volumeInput / luasTabung;
+
+  levelTarget = levelAwal + dropTinggi;
+  digitalWrite(pompa, HIGH);
+  Serial.println("pompa menyala");
+  lcd.setCursor(0, 1);
+  lcd.print("mengisi: ");
+  //
+
+}
+
+void setup() {
+  pinMode(infraRed, INPUT);
+  Serial.begin(9600);
+  pinMode(pompa, OUTPUT);
+  lcd.init();                      // Inisialisasi LCD [1]
+  lcd.backlight();                 // Menyalakan lampu latar [5]
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+  pinMode(button, INPUT_PULLUP);
+  pinMode(8, INPUT_PULLUP);
+  lcd.clear();
+  lcd.setCursor(3, 0);
+  lcd.print("Automatic");
+  lcd.setCursor(2, 1);
+  lcd.print("water filler");
+}
+
+void loop() {
+  char key = keypad.getKey();
+
+  sinyal = digitalRead(infraRed);
+
+  if (key) {
+    if (key >= '0' && key <= '9') {
+      int temb = volumeInput * 10 + (key - '0');
+      if (temb <= 1300) {
+        lcd.clear();
+        volumeInput = temb;
+        lcd.setCursor(0, 0);
+        lcd.print("input: ");
+        lcd.setCursor(7, 0);
+        lcd.print(volumeInput);
+        lcd.setCursor(12, 0);
+        lcd.print("ml");
+      }
+    }
+    else if (key == '*') {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("reset");
+      volumeInput = 0;
+    }
+  }
+
+  if (sinyal == LOW && !kondisiMengisi && volumeInput > 0 && !adaGelas ) {
+    adaGelas = true;
+    Serial.println("gelas terdeteksi");
+    mengisiAir();
+  }
+  if (sinyal == HIGH ) {
+    adaGelas = false;
+  }
+}
