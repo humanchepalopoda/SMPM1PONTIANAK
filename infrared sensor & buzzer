@@ -1,0 +1,36 @@
+int sensor = 2;
+const int pinBuzzer = 8; 
+unsigned long waktuSebelumnya = 0; 
+const long intervalBlink = 500;
+int statusBuzzer = LOW;
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(sensor, INPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  if (digitalRead(sensor) == LOW) {
+    Serial.println("ADA BARANG");
+  } else {
+    Serial.println("TIDAK ADA BARANG");
+  }
+}
+
+
+
+
+void blink() {
+  unsigned long waktuSekarang = millis(); 
+  if (waktuSekarang - waktuSebelumnya >= intervalBlink) {
+    waktuSebelumnya = waktuSekarang; 
+    if (statusBuzzer == LOW) {
+      statusBuzzer = HIGH;
+    } else {
+      statusBuzzer = LOW;
+    }
+    digitalWrite(pinBuzzer, statusBuzzer);
+  }
+}
