@@ -1,0 +1,259 @@
+
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+#define tombol 8
+#define buzzPin 9
+
+// =================================
+// VARIABEL ANIMASI
+// =================================
+
+unsigned long previousMillis = 0;
+unsigned long interval = 1000;
+
+unsigned long previousMulut = 0;
+unsigned long intervalMulut = 250;
+
+bool mataTerbuka = true;
+bool modeBernyanyi = false;
+bool mulutTerbuka = true;
+bool kondisiNyanyi = false;
+
+// =================================
+// DATA NADA BUZZER
+// =================================
+
+int nada[] = {
+  0, 1046, 1174, 1318, 1396, 1567, 1769, 1975,
+  2093, 2349, 2637, 2794, 3135, 3520, 3951, 4186, 4699
+};
+
+int noteSequence[] = {
+  12, 10, 9, 8, 9, 8, 99, 8, 12, 99, 12, 10, 9, 8,
+  5, 8, 90, 8, 90, 8, 90, 8, 90, 8, 90, 8, 5, 8, 9,
+  8, 11, 10, 8, 11, 10, 11, 12, 90,
+  8, 9, 10, 12, 10, 9, 8, 9, 10, 12, 90,
+  8, 9, 10, 12, 10, 90, 10, 14, 15, 14, 12, 90,
+  15, 14, 12, 90, 12, 8, 12, 90, 12, 11, 10, 9, 90,
+  15, 14, 12, 90, 12, 8, 12, 90, 12, 90, 11, 10, 9, 8, 90
+};
+
+int noteDurations[] = {
+  500, 1000, 300, 300, 1000, 250, 50, 250,
+  200, 50, 200, 900, 500, 2000,
+  300, 300, 50, 300, 50, 300, 50, 300,
+  50, 300, 50, 300, 300, 300, 1000,
+  300, 300, 400, 300, 300, 400, 300, 2000, 200,
+  500, 400, 280, 300, 400, 280, 300, 300, 280, 600, 200,
+  500, 400, 280, 300, 280, 50, 300, 280, 300, 280, 600, 200,
+  300, 300, 280, 50, 300, 300, 280, 50, 300, 300, 300, 600, 200,
+  300, 300, 280, 50, 300, 300, 300, 50, 1800, 200, 300, 300, 300, 700, 100
+};
+
+// =================================
+// VARIABEL BUZZER
+// =================================
+
+unsigned long noteStartTime = 0;
+unsigned long noteInterval = 0;
+
+int noteIndex = 0;
+
+const int totalNotes =
+  sizeof(noteSequence) / sizeof(noteSequence[0]);
+
+// =================================
+// SETUP
+// =================================
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+
+  pinMode(tombol, INPUT_PULLUP);
+  pinMode(buzzPin, OUTPUT);
+
+  lcd.setCursor(0, 0);
+  lcd.print("prabowo subianto");
+}
+
+// =================================
+// VOID MATA KEDIP
+// =================================
+
+void mataKedip() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    lcd.clear();
+
+    if (mataTerbuka) {
+      lcd.setCursor(5, 0);
+      lcd.print("0   0");
+      interval = 1000;
+    }
+    else {
+      lcd.setCursor(5, 0);
+      lcd.print("-   -");
+      interval = 300;
+    }
+
+    lcd.setCursor(7, 1);
+    lcd.print("_");
+
+    mataTerbuka = !mataTerbuka;
+  }
+}
+
+// =================================
+// VOID MATA BERNYANYI
+// =================================
+
+void mataBernyanyi() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMulut >= intervalMulut) {
+    previousMulut = currentMillis;
+
+    lcd.setCursor(5, 0);
+    lcd.print("0   0");
+
+    lcd.setCursor(7, 1);
+
+    if (mulutTerbuka) {
+      lcd.print("0");
+    }
+    else {
+      lcd.print("-");
+    }
+
+    mulutTerbuka = !mulutTerbuka;
+  }
+}
+
+// =================================
+// VOID BUZZER
+// =================================
+
+void bunyi(int nadaKe) {
+  if (nadaKe >= 0 &&
+      nadaKe < sizeof(nada) / sizeof(nada[0]) &&
+      nada[nadaKe] > 0) {
+
+    tone(buzzPin, nada[nadaKe]);
+  }
+  else {
+    noTone(buzzPin);
+  }
+}
+
+// =================================
+// VOID MAINKAN LAGU
+// =================================
+
+void mainkanLagu() {
+  unsigned long currentMillis = millis();
+
+  if (noteIndex < totalNotes) {
+
+    if (currentMillis - noteStartTime >= noteInterval) {
+
+      bunyi(noteSequence[noteIndex]);
+
+      noteInterval = noteDurations[noteIndex];
+
+      noteIndex++;
+
+      noteStartTime = currentMillis;
+    }
+  }
+  else {
+    noTone(buzzPin);
+  }
+}
+
+// =================================
+// VOID MULAI BERNYANYI
+// =================================
+
+void mulaiBernyanyi() {
+  lcd.clear();
+
+  modeBernyanyi = true;
+
+  mataTerbuka = true;
+  mulutTerbuka = true;
+
+  previousMulut = millis();
+
+  noteIndex = 0;
+  noteInterval = 0;
+  noteStartTime = millis();
+
+  lcd.setCursor(5, 0);
+  lcd.print("0   0");
+}
+
+// =================================
+// VOID KEMBALI NORMAL
+// =================================
+
+void kembaliNormal() {
+  noTone(buzzPin);
+
+  modeBernyanyi = false;
+
+  noteIndex = 0;
+  noteInterval = 0;
+
+  lcd.clear();
+
+  mataTerbuka = true;
+  interval = 1000;
+  previousMillis = millis();
+}
+
+// =================================
+// LOOP UTAMA
+// =================================
+
+void loop() {
+  Ktombol();
+
+  if (kondisiNyanyi == true) {
+
+    if (!modeBernyanyi) {
+      mulaiBernyanyi();
+    }
+
+    mataBernyanyi();
+    mainkanLagu();
+
+  }
+
+  else {
+
+    if (modeBernyanyi) {
+      kembaliNormal();
+    }
+
+    mataKedip();
+
+  }
+}
+
+void Ktombol() {
+  if (digitalRead(8)== LOW) {
+    if (!kondisiNyanyi) {
+      kondisiNyanyi = true;
+    } else {
+      kondisiNyanyi = false;
+    }
+  }
+}
