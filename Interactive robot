@@ -4,23 +4,49 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// =================================
+// PIN
+// =================================
+
 #define tombol 8
 #define buzzPin 9
+#define sensorIR 7
+
+// Sensor IR biasanya LOW saat mendeteksi objek
+const int IR_DETECT = LOW;
 
 // =================================
-// VARIABEL ANIMASI
+// VARIABEL ANIMASI STANDBY
 // =================================
 
 unsigned long previousMillis = 0;
 unsigned long interval = 1000;
 
+bool mataTerbuka = true;
+
+// =================================
+// VARIABEL ANIMASI SAPAAN
+// =================================
+
+bool objekTerdeteksi = false;
+bool tampilanMenyapa = false;
+
+bool mulutSapaanTerbuka = false;
+
+unsigned long previousSapaan = 0;
+const unsigned long intervalSapaan = 250;
+
+// =================================
+// VARIABEL MODE BERNYANYI
+// =================================
+
+bool modeBernyanyi = false;
+bool kondisiNyanyi = false;
+
+bool mulutTerbuka = true;
+
 unsigned long previousMulut = 0;
 unsigned long intervalMulut = 250;
-
-bool mataTerbuka = true;
-bool modeBernyanyi = false;
-bool mulutTerbuka = true;
-bool kondisiNyanyi = false;
 
 // =================================
 // DATA NADA BUZZER
@@ -31,6 +57,10 @@ int nada[] = {
   2093, 2349, 2637, 2794, 3135, 3520, 3951, 4186, 4699
 };
 
+// =================================
+// URUTAN LAGU
+// =================================
+
 int noteSequence[] = {
   12, 10, 9, 8, 9, 8, 99, 8, 12, 99, 12, 10, 9, 8,
   5, 8, 90, 8, 90, 8, 90, 8, 90, 8, 90, 8, 5, 8, 9,
@@ -40,6 +70,10 @@ int noteSequence[] = {
   15, 14, 12, 90, 12, 8, 12, 90, 12, 11, 10, 9, 90,
   15, 14, 12, 90, 12, 8, 12, 90, 12, 90, 11, 10, 9, 8, 90
 };
+
+// =================================
+// DURASI NADA
+// =================================
 
 int noteDurations[] = {
   500, 1000, 300, 300, 1000, 250, 50, 250,
@@ -62,8 +96,26 @@ unsigned long noteInterval = 0;
 
 int noteIndex = 0;
 
-const int totalNotes =
+// Jumlah nada mengikuti array yang paling pendek
+const int jumlahSequence =
   sizeof(noteSequence) / sizeof(noteSequence[0]);
+
+const int jumlahDurasi =
+  sizeof(noteDurations) / sizeof(noteDurations[0]);
+
+const int totalNotes =
+  (jumlahSequence < jumlahDurasi)
+  ? jumlahSequence
+  : jumlahDurasi;
+
+// =================================
+// VARIABEL TOMBOL
+// =================================
+
+bool tombolSebelumnya = HIGH;
+
+unsigned long waktuDebounce = 0;
+const unsigned long debounceDelay = 50;
 
 // =================================
 // SETUP
@@ -77,12 +129,96 @@ void setup() {
   pinMode(tombol, INPUT_PULLUP);
   pinMode(buzzPin, OUTPUT);
 
+  pinMode(sensorIR, INPUT);
+
   lcd.setCursor(0, 0);
   lcd.print("prabowo subianto");
 }
 
 // =================================
-// VOID MATA KEDIP
+// BACA SENSOR IR
+// =================================
+
+void bacaSensorIR() {
+  bool statusIR = (digitalRead(sensorIR) == IR_DETECT);
+
+  if (statusIR != objekTerdeteksi) {
+    objekTerdeteksi = statusIR;
+
+    if (objekTerdeteksi) {
+      tampilkanSapaan();
+    }
+    else {
+      tampilanMenyapa = false;
+
+      lcd.clear();
+
+      // Jika lagu masih berjalan,
+      // tampilkan wajah bernyanyi
+      if (modeBernyanyi) {
+        lcd.setCursor(5, 0);
+        lcd.print("0   0");
+
+        lcd.setCursor(7, 1);
+        lcd.print("-");
+      }
+    }
+  }
+}
+
+// =================================
+// TAMPILKAN WAJAH SAPAAN
+// =================================
+
+void tampilkanSapaan() {
+  tampilanMenyapa = true;
+
+  // Mulut mulai tertutup
+  mulutSapaanTerbuka = false;
+
+  previousSapaan = millis();
+
+  lcd.clear();
+
+  // Mata
+  lcd.setCursor(5, 0);
+  lcd.print("^   ^");
+
+
+  // Tulisan sapaan
+  lcd.setCursor(9, 1);
+  lcd.print("haloo");
+}
+
+// =================================
+// ANIMASI MULUT SAPAAN
+// =================================
+
+void animasiSapaan() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousSapaan >= intervalSapaan) {
+    previousSapaan = currentMillis;
+
+    mulutSapaanTerbuka = !mulutSapaanTerbuka;
+
+    lcd.setCursor(7, 1);
+
+    if (mulutSapaanTerbuka) {
+      lcd.print("o");
+    }
+    else {
+      lcd.print("-");
+    }
+
+    // Pastikan tulisan haloo tetap terlihat
+    lcd.setCursor(9, 1);
+    lcd.print("haloo");
+  }
+}
+
+// =================================
+// ANIMASI MATA STANDBY
 // =================================
 
 void mataKedip() {
@@ -96,11 +232,13 @@ void mataKedip() {
     if (mataTerbuka) {
       lcd.setCursor(5, 0);
       lcd.print("0   0");
+
       interval = 1000;
     }
     else {
       lcd.setCursor(5, 0);
       lcd.print("-   -");
+
       interval = 300;
     }
 
@@ -112,7 +250,7 @@ void mataKedip() {
 }
 
 // =================================
-// VOID MATA BERNYANYI
+// ANIMASI MATA BERNYANYI
 // =================================
 
 void mataBernyanyi() {
@@ -127,7 +265,7 @@ void mataBernyanyi() {
     lcd.setCursor(7, 1);
 
     if (mulutTerbuka) {
-      lcd.print("0");
+      lcd.print("o");
     }
     else {
       lcd.print("-");
@@ -138,7 +276,7 @@ void mataBernyanyi() {
 }
 
 // =================================
-// VOID BUZZER
+// BUZZER
 // =================================
 
 void bunyi(int nadaKe) {
@@ -154,7 +292,7 @@ void bunyi(int nadaKe) {
 }
 
 // =================================
-// VOID MAINKAN LAGU
+// MAINKAN LAGU
 // =================================
 
 void mainkanLagu() {
@@ -179,7 +317,7 @@ void mainkanLagu() {
 }
 
 // =================================
-// VOID MULAI BERNYANYI
+// MULAI BERNYANYI
 // =================================
 
 void mulaiBernyanyi() {
@@ -198,10 +336,13 @@ void mulaiBernyanyi() {
 
   lcd.setCursor(5, 0);
   lcd.print("0   0");
+
+  lcd.setCursor(7, 1);
+  lcd.print("-");
 }
 
 // =================================
-// VOID KEMBALI NORMAL
+// KEMBALI KE STANDBY
 // =================================
 
 void kembaliNormal() {
@@ -217,6 +358,52 @@ void kembaliNormal() {
   mataTerbuka = true;
   interval = 1000;
   previousMillis = millis();
+
+  // Mulut kembali tertutup
+  mulutSapaanTerbuka = false;
+  mulutTerbuka = false;
+
+  previousSapaan = millis();
+
+  // Jika IR masih mendeteksi objek,
+  // wajah sapaan standby dengan mulut tertutup
+  if (objekTerdeteksi) {
+    lcd.setCursor(5, 0);
+    lcd.print("^   ^");
+
+    
+
+    lcd.setCursor(9, 1);
+    lcd.print("haloo");
+  }
+}
+
+// =================================
+// TOMBOL MODE BERNYANYI
+// =================================
+
+void Ktombol() {
+  bool tombolSekarang = digitalRead(tombol);
+
+  if (tombolSekarang != tombolSebelumnya) {
+    waktuDebounce = millis();
+  }
+
+  if (millis() - waktuDebounce > debounceDelay) {
+
+    static bool statusTombolStabil = HIGH;
+
+    if (tombolSekarang != statusTombolStabil) {
+      statusTombolStabil = tombolSekarang;
+
+      // Deteksi saat tombol ditekan
+      if (statusTombolStabil == LOW) {
+        kondisiNyanyi = !kondisiNyanyi;
+      }
+    }
+  }
+
+  tombolSebelumnya = tombolSekarang;
 }
 
 // =================================
@@ -226,16 +413,29 @@ void kembaliNormal() {
 void loop() {
   Ktombol();
 
-  if (kondisiNyanyi == true) {
+  bacaSensorIR();
+
+  // =================================
+  // MODE BERNYANYI
+  // =================================
+
+  if (kondisiNyanyi) {
 
     if (!modeBernyanyi) {
       mulaiBernyanyi();
     }
 
-    mataBernyanyi();
     mainkanLagu();
 
+    // Lagu selesai otomatis
+    if (noteIndex >= totalNotes) {
+      kondisiNyanyi = false;
+    }
   }
+
+  // =================================
+  // MODE STANDBY
+  // =================================
 
   else {
 
@@ -243,17 +443,16 @@ void loop() {
       kembaliNormal();
     }
 
-    mataKedip();
+    // IR mendeteksi objek
+    if (objekTerdeteksi) {
 
-  }
-}
+      // Animasi mulut sapaan
+      animasiSapaan();
+    }
 
-void Ktombol() {
-  if (digitalRead(8)== LOW) {
-    if (!kondisiNyanyi) {
-      kondisiNyanyi = true;
-    } else {
-      kondisiNyanyi = false;
+    // Tidak ada objek
+    else {
+      mataKedip();
     }
   }
 }
