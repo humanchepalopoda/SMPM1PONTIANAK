@@ -1,6 +1,10 @@
-
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
+#include <Servo.h>
+
+// =================================
+// LCD
+// =================================
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -10,10 +14,30 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 #define tombol 8
 #define buzzPin 9
+#define servoPin 10
 #define sensorIR 7
 
-// Sensor IR biasanya LOW saat mendeteksi objek
 const int IR_DETECT = LOW;
+
+// =================================
+// SERVO TANGAN
+// =================================
+
+Servo tangan;
+
+unsigned long waktuServoSebelumnya = 0;
+
+int posServo = 60;
+int arahServo = 2;
+
+int jumlahLambaian = 0;
+
+bool sedangJedaServo = false;
+
+unsigned long waktuJedaServo = 0;
+
+const unsigned long intervalServo = 15;
+const unsigned long durasiJedaServo = 2000;
 
 // =================================
 // VARIABEL ANIMASI STANDBY
@@ -96,7 +120,6 @@ unsigned long noteInterval = 0;
 
 int noteIndex = 0;
 
-// Jumlah nada mengikuti array yang paling pendek
 const int jumlahSequence =
   sizeof(noteSequence) / sizeof(noteSequence[0]);
 
@@ -128,8 +151,11 @@ void setup() {
 
   pinMode(tombol, INPUT_PULLUP);
   pinMode(buzzPin, OUTPUT);
-
   pinMode(sensorIR, INPUT);
+
+  // Servo tangan
+  tangan.attach(servoPin);
+  tangan.write(0);
 
   lcd.setCursor(0, 0);
   lcd.print("prabowo subianto");
@@ -153,8 +179,6 @@ void bacaSensorIR() {
 
       lcd.clear();
 
-      // Jika lagu masih berjalan,
-      // tampilkan wajah bernyanyi
       if (modeBernyanyi) {
         lcd.setCursor(5, 0);
         lcd.print("0   0");
@@ -167,27 +191,110 @@ void bacaSensorIR() {
 }
 
 // =================================
+// SERVO TANGAN MELAMBAI
+// =================================
+
+void gerakkanServoTangan() {
+  unsigned long waktuSekarang = millis();
+
+  // Jika objek tidak terdeteksi
+  if (!objekTerdeteksi) {
+    tangan.write(0);
+
+    posServo = 60;
+    arahServo = 2;
+    jumlahLambaian = 0;
+
+    sedangJedaServo = false;
+
+    waktuServoSebelumnya = waktuSekarang;
+
+    return;
+  }
+
+  // =================================
+  // MODE JEDA SERVO
+  // =================================
+
+  if (sedangJedaServo) {
+
+    // Tunggu 2 detik di posisi 0 derajat
+    if (waktuSekarang - waktuJedaServo >= durasiJedaServo) {
+
+      sedangJedaServo = false;
+
+      jumlahLambaian = 0;
+
+      posServo = 60;
+      arahServo = 2;
+
+      waktuServoSebelumnya = waktuSekarang;
+    }
+
+    return;
+  }
+
+  // =================================
+  // GERAKAN SERVO
+  // =================================
+
+  if (waktuSekarang - waktuServoSebelumnya >= intervalServo) {
+
+    waktuServoSebelumnya = waktuSekarang;
+
+    tangan.write(posServo);
+
+    posServo += arahServo;
+
+    // Mencapai batas kanan
+    if (posServo >= 120) {
+      posServo = 120;
+      arahServo = -2;
+    }
+
+    // Kembali ke posisi 60 derajat
+    else if (posServo <= 60) {
+
+      posServo = 60;
+      arahServo = 2;
+
+      jumlahLambaian++;
+
+      // Setelah 3 kali lambaian
+      if (jumlahLambaian >= 3) {
+
+        tangan.write(0);
+
+        sedangJedaServo = true;
+
+        waktuJedaServo = waktuSekarang;
+      }
+    }
+  }
+}
+
+// =================================
 // TAMPILKAN WAJAH SAPAAN
 // =================================
 
 void tampilkanSapaan() {
   tampilanMenyapa = true;
 
-  // Mulut mulai tertutup
   mulutSapaanTerbuka = false;
 
   previousSapaan = millis();
 
   lcd.clear();
 
-  // Mata
+
   lcd.setCursor(5, 0);
-  lcd.print("^   ^");
+lcd.print("^   ^");
 
+lcd.setCursor(7, 1);
+lcd.print("-");
 
-  // Tulisan sapaan
-  lcd.setCursor(9, 1);
-  lcd.print("haloo");
+lcd.setCursor(9, 1);
+lcd.print("haloo");
 }
 
 // =================================
@@ -210,10 +317,6 @@ void animasiSapaan() {
     else {
       lcd.print("-");
     }
-
-    // Pastikan tulisan haloo tetap terlihat
-    lcd.setCursor(9, 1);
-    lcd.print("haloo");
   }
 }
 
@@ -225,17 +328,20 @@ void mataKedip() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis >= interval) {
+
     previousMillis = currentMillis;
 
     lcd.clear();
 
     if (mataTerbuka) {
+
       lcd.setCursor(5, 0);
       lcd.print("0   0");
 
       interval = 1000;
     }
     else {
+
       lcd.setCursor(5, 0);
       lcd.print("-   -");
 
@@ -280,6 +386,7 @@ void mataBernyanyi() {
 // =================================
 
 void bunyi(int nadaKe) {
+
   if (nadaKe >= 0 &&
       nadaKe < sizeof(nada) / sizeof(nada[0]) &&
       nada[nadaKe] > 0) {
@@ -359,19 +466,15 @@ void kembaliNormal() {
   interval = 1000;
   previousMillis = millis();
 
-  // Mulut kembali tertutup
   mulutSapaanTerbuka = false;
   mulutTerbuka = false;
 
   previousSapaan = millis();
 
-  // Jika IR masih mendeteksi objek,
-  // wajah sapaan standby dengan mulut tertutup
   if (objekTerdeteksi) {
+
     lcd.setCursor(5, 0);
     lcd.print("^   ^");
-
-    
 
     lcd.setCursor(9, 1);
     lcd.print("haloo");
@@ -394,9 +497,9 @@ void Ktombol() {
     static bool statusTombolStabil = HIGH;
 
     if (tombolSekarang != statusTombolStabil) {
+
       statusTombolStabil = tombolSekarang;
 
-      // Deteksi saat tombol ditekan
       if (statusTombolStabil == LOW) {
         kondisiNyanyi = !kondisiNyanyi;
       }
@@ -411,9 +514,14 @@ void Ktombol() {
 // =================================
 
 void loop() {
+
   Ktombol();
 
   bacaSensorIR();
+
+  // Servo diproses terus-menerus
+  // tanpa delay dan tanpa menghentikan lagu
+  gerakkanServoTangan();
 
   // =================================
   // MODE BERNYANYI
@@ -421,17 +529,20 @@ void loop() {
 
   if (kondisiNyanyi) {
 
-    if (!modeBernyanyi) {
-      mulaiBernyanyi();
-    }
-
-    mainkanLagu();
-
-    // Lagu selesai otomatis
-    if (noteIndex >= totalNotes) {
-      kondisiNyanyi = false;
-    }
+  if (!modeBernyanyi) {
+    mulaiBernyanyi();
   }
+
+  mainkanLagu();
+
+  // Animasi mulut saat bernyanyi
+  mataBernyanyi();
+
+  // Lagu selesai otomatis
+  if (noteIndex >= totalNotes) {
+    kondisiNyanyi = false;
+  }
+}
 
   // =================================
   // MODE STANDBY
@@ -443,14 +554,9 @@ void loop() {
       kembaliNormal();
     }
 
-    // IR mendeteksi objek
     if (objekTerdeteksi) {
-
-      // Animasi mulut sapaan
       animasiSapaan();
     }
-
-    // Tidak ada objek
     else {
       mataKedip();
     }
